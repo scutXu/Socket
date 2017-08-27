@@ -1,18 +1,20 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <queue>
 #include <functional>
 #include "BufferList.h"
 #include "EndPoint.h"
 
 using std::string;
+using std::vector;
 using std::queue;
 using std::function;
 
 class Socket;
 
-typedef function<void(Socket, int)> AcceptCallback;
+typedef function<void(Socket &&, int)> AcceptCallback;
 typedef function<void(int)> ConnectCallback;
 typedef function<void(void *, int, int)> ReadCallback;
 typedef function<void(int)> WriteCallback;
@@ -93,8 +95,11 @@ private:
 	ConnectCallback m_connectRequest;
 	queue<ReadRequest> m_readRequests;
 	queue<WriteRequest> m_writeRequests;
-	BufferList m_readBuffer;
-	BufferList m_writeBuffer;
+	vector<uint8_t> m_readBuffer;
+	vector<uint8_t> m_writeBuffer;
+
+	//BufferList m_readBuffer;
+	//BufferList m_writeBuffer;
 };
 
 

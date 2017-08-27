@@ -2,7 +2,9 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <utility>
+#include <string.h>
 #include "Socket.h"
 
 Socket::Socket()
@@ -109,13 +111,15 @@ void Socket::connect(EndPoint & ep, ConnectCallback cb)
 		cb(0);
 	}
 	else {
-		if (errno == EWOULDBLOCK || errno == EAGAIN) {
+		if (errno == EINPROGRESS) {
 			m_state = CONNECTING;
 			m_connectRequest = cb;
 		}
 		else {
-			assert(errno != 0);
-			cb(errno);
+			int e = errno;
+			close();
+			assert(e != 0);
+			cb(e);
 		}
 	}
 }
@@ -123,14 +127,109 @@ void Socket::connect(EndPoint & ep, ConnectCallback cb)
 void Socket::accept(AcceptCallback cb)
 {
 	assert(m_state == LISTENING);
-	int fd = ::accept(m_fd, nullptr, nullptr);
-	if (fd >= 0) {
-		Socket s;
-		s.m_fd = fd;
-		s.m_state = CONNECTED;
-		cb(std::move(s), 0);
+	m_acceptRequests.push(cb);
+}
+
+void Socket::read(int size, ReadCallback cb)
+{
+	assert(m_state == CONNECTING || m_state == CONNECTED);
+	ReadRequest rq;
+	rq.cb = cb;
+	rq.size = size;
+	m_readRequests.push(rq);
+}
+
+void Socket::readUntil(char delim, ReadCallback cb)
+{
+	assert(m_state == CONNECTING || m_state == CONNECTED);
+	ReadRequest rq;
+	rq.cb = cb;
+	rq.size = -1;
+	rq.delim = delim;
+	m_readRequests.push(rq);
+}
+
+void Socket::write(void * data, int size, WriteCallback cb)
+{
+	assert(m_state == CONNECTING || m_state == CONNECTED);
+
+	size_t oldSize = m_writeBuffer.size();
+	m_writeBuffer.resize(oldSize + size);
+	memcpy(&m_writeBuffer[oldSize], data, size);
+
+	WriteRequest wq;
+	wq.cb = cb;
+	wq.size = size;
+	m_writeRequests.push(wq);
+}
+
+int Socket::close()
+{
+	if (m_fd >= 0) {
+		int status = ::close(m_fd);
+		m_fd = -1;
+		m_state = CLOSED;
+		if (status == 0) {
+			return 0;
+		}
+		assert(errno != 0);
+		return errno;
+	}
+	return 0;
+}
+
+bool Socket::waitToRead()
+{
+	return m_state == CONNECTING
+		|| (m_state == CONNECTED && !m_readRequests.empty())
+		|| (m_state == LISTENING && !m_acceptRequests.empty());
+}
+
+bool Socket::waitToWrite()
+{
+	return m_state == CONNECTED && !m_writeBuffer.empty();
+}
+
+void Socket::doRead()
+{
+	if (m_state == LISTENING) {
+		if (!m_acceptRequests.empty()) {
+			int fd = ::accept(m_fd, nullptr, nullptr);
+			if (fd >= 0) {
+				Socket s;
+				s.m_fd = fd;
+				s.m_state = CONNECTED;
+				AcceptCallback cb = m_acceptRequests.front();
+				m_acceptRequests.pop();
+				cb(std::move(s), 0);
+			}
+			else {
+				if (errno == EWOULDBLOCK || errno == EAGAIN || errno == ECONNABORTED) {
+
+				}
+				else {
+					AcceptCallback cb = m_acceptRequests.front();
+					m_acceptRequests.pop();
+					cb(Socket(), errno);
+				}
+			}
+			
+		}
+	}
+	else if (m_state == CONNECTING) {
+		int status = ::read(m_fd, nullptr, 0);
+		if (status == 0) {
+			m_state == CONNECTED;
+			m_connectRequest(0);
+		}
+		else {
+			
+		}
+	}
+	else if (m_state == CONNECTED) {
+
 	}
 	else {
-
+		assert(false);
 	}
 }
