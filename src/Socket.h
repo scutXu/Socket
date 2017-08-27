@@ -4,6 +4,7 @@
 #include <queue>
 #include <functional>
 #include "BufferList.h"
+#include "EndPoint.h"
 
 using std::string;
 using std::queue;
@@ -23,6 +24,7 @@ public:
 	{
 		CLOSED,
 		OPENED,
+		BOUND,
 		LISTENING,
 		CONNECTING,
 		CONNECTED,
@@ -39,15 +41,21 @@ public:
 
 	State getState();
 
+	void setNonBlocking();
+
 	int open(int domain, int type, int protocol);
 
 	int bind(const char * ipAddress, uint16_t port);
-	int bind(uint32_t ipAddress, uint16_t port);
+	//int bind(uint32_t ipAddress, uint16_t port);
+	//int bind(uint64_t ipAddress, uint16_t port);
+	int bind(EndPoint & ep);
+
 
 	int listen(int backlog);
 
 	void connect(const char * ipAddress, uint16_t port, ConnectCallback cb);
-	void connect(uint32_t ipAddress, uint16_t port, ConnectCallback cb);
+	//void connect(uint32_t ipAddress, uint16_t port, ConnectCallback cb);
+	void connect(EndPoint & ep, ConnectCallback cb);
 
 	void accept(AcceptCallback);
 
