@@ -52,48 +52,47 @@ void Socket::setNonBlocking()
 	}
 }
 
-int Socket::open(int domain, int type, int protocol)
+error_code Socket::open(int domain, int type, int protocol)
 {
 	assert(m_state == CLOSED);
 	m_fd = socket(domain, type, protocol);
 	if (m_fd >= 0) {
 		m_state = OPENED;
-		return 0;
+        return error_code(0, std::generic_category());
 	}
 	assert(errno != 0);
-	return errno;
+    return error_code(errno, std::generic_category());
 }
 
-int Socket::bind(const char * ipAddress, uint16_t port)
+error_code Socket::bind(const char * ipAddress, uint16_t port)
 {
 	EndPoint ep(ipAddress, port);
 	return bind(ep);
 }
 
 
-int Socket::bind(EndPoint & ep)
+error_code Socket::bind(EndPoint & ep)
 {
 	assert(m_state == OPENED);
 	int status = ::bind(m_fd, &ep.addr, sizeof(ep));
 	if (status == 0) {
 		m_state = BOUND;
-		setNonBlocking();
-		return 0;
+		return error_code(0, std::generic_category());
 	}
 	assert(errno != 0);
-	return errno;
+	return error_code(errno, std::generic_category());
 }
 
-int Socket::listen(int backlog)
+error_code Socket::listen(int backlog)
 {
 	assert(m_state == BOUND);
 	int status = ::listen(m_fd, backlog);
 	if (status == 0) {
 		m_state = LISTENING;
-		return 0;
+		return error_code(0, std::generic_category());
 	}
 	assert(errno != 0);
-	return errno;
+	return error_code(errno, std::generic_category());
 }
 
 void Socket::connect(const char * ipAddress, uint16_t port, ConnectCallback cb)
@@ -108,7 +107,7 @@ void Socket::connect(EndPoint & ep, ConnectCallback cb)
 	int status = ::connect(m_fd, &ep.addr, sizeof(ep));
 	if (status == 0) {
 		m_state = CONNECTED;
-		cb(0);
+		cb(error_code(0, std::generic_category()));
 	}
 	else {
 		if (errno == EINPROGRESS) {
@@ -119,7 +118,7 @@ void Socket::connect(EndPoint & ep, ConnectCallback cb)
 			int e = errno;
 			close();
 			assert(e != 0);
-			cb(e);
+			cb(error_code(errno, std::generic_category()));
 		}
 	}
 }
@@ -163,19 +162,19 @@ void Socket::write(void * data, int size, WriteCallback cb)
 	m_writeRequests.push(wq);
 }
 
-int Socket::close()
+error_code Socket::close()
 {
 	if (m_fd >= 0) {
 		int status = ::close(m_fd);
 		m_fd = -1;
 		m_state = CLOSED;
 		if (status == 0) {
-			return 0;
+			return error_code(0, std::generic_category());
 		}
 		assert(errno != 0);
-		return errno;
+		return error_code(errno, std::generic_category());
 	}
-	return 0;
+	return error_code(0, std::generic_category());
 }
 
 bool Socket::waitToRead()
@@ -201,7 +200,7 @@ void Socket::doRead()
 				s.m_state = CONNECTED;
 				AcceptCallback cb = m_acceptRequests.front();
 				m_acceptRequests.pop();
-				cb(std::move(s), 0);
+				cb(std::move(s), error_code(0, std::generic_category()));
 			}
 			else {
 				if (errno == EWOULDBLOCK || errno == EAGAIN || errno == ECONNABORTED) {
@@ -210,7 +209,7 @@ void Socket::doRead()
 				else {
 					AcceptCallback cb = m_acceptRequests.front();
 					m_acceptRequests.pop();
-					cb(Socket(), errno);
+					cb(Socket(), error_code(errno, std::generic_category()));
 				}
 			}
 			
@@ -220,14 +219,14 @@ void Socket::doRead()
 		int status = ::read(m_fd, nullptr, 0);
 		if (status == 0) {
 			m_state = CONNECTED;
-			m_connectRequest(0);
+			m_connectRequest(error_code(0, std::generic_category()));
 		}
 		else {
 			
             int e = errno;
             close();
             assert(e != 0);
-            m_connectRequest(e);
+            m_connectRequest(error_code(errno, std::generic_category()));
 		}
 	}
 	else if (m_state == CONNECTED) {

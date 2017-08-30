@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1510F1961F54335000989F65 /* EndPoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1510F1921F54335000989F65 /* EndPoint.cpp */; };
 		1510F1971F54335000989F65 /* Socket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1510F1941F54335000989F65 /* Socket.cpp */; };
+		1549B1231F56D68700FA6B2F /* misc_error.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1549B1221F56D68700FA6B2F /* misc_error.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -30,6 +31,8 @@
 		1510F1931F54335000989F65 /* EndPoint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = EndPoint.h; sourceTree = "<group>"; };
 		1510F1941F54335000989F65 /* Socket.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Socket.cpp; sourceTree = "<group>"; };
 		1510F1951F54335000989F65 /* Socket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Socket.h; sourceTree = "<group>"; };
+		1549B1211F56D68700FA6B2F /* misc_error.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = misc_error.h; sourceTree = "<group>"; };
+		1549B1221F56D68700FA6B2F /* misc_error.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = misc_error.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,6 +65,8 @@
 		1510F1901F54335000989F65 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				1549B1221F56D68700FA6B2F /* misc_error.cpp */,
+				1549B1211F56D68700FA6B2F /* misc_error.h */,
 				1510F1911F54335000989F65 /* BufferList.h */,
 				1510F1921F54335000989F65 /* EndPoint.cpp */,
 				1510F1931F54335000989F65 /* EndPoint.h */,
@@ -131,6 +136,7 @@
 			files = (
 				1510F1971F54335000989F65 /* Socket.cpp in Sources */,
 				1510F1961F54335000989F65 /* EndPoint.cpp in Sources */,
+				1549B1231F56D68700FA6B2F /* misc_error.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

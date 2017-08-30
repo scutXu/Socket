@@ -4,6 +4,7 @@
 #include <vector>
 #include <queue>
 #include <functional>
+#include <system_error>
 #include "BufferList.h"
 #include "EndPoint.h"
 
@@ -11,13 +12,14 @@ using std::string;
 using std::vector;
 using std::queue;
 using std::function;
+using std::error_code;
 
 class Socket;
 
-typedef function<void(Socket &&, int)> AcceptCallback;
-typedef function<void(int)> ConnectCallback;
-typedef function<void(void *, int, int)> ReadCallback;
-typedef function<void(int)> WriteCallback;
+typedef function<void(Socket &&, const error_code &)> AcceptCallback;
+typedef function<void(const error_code &)> ConnectCallback;
+typedef function<void(void *, int, const error_code &)> ReadCallback;
+typedef function<void(const error_code &)> WriteCallback;
 
 class Socket
 {
@@ -45,15 +47,15 @@ public:
 
 	void setNonBlocking();
 
-	int open(int domain, int type, int protocol);
+	error_code open(int domain, int type, int protocol);
 
-	int bind(const char * ipAddress, uint16_t port);
+	error_code bind(const char * ipAddress, uint16_t port);
 	//int bind(uint32_t ipAddress, uint16_t port);
 	//int bind(uint64_t ipAddress, uint16_t port);
-	int bind(EndPoint & ep);
+	error_code bind(EndPoint & ep);
 
 
-	int listen(int backlog);
+	error_code listen(int backlog);
 
 	void connect(const char * ipAddress, uint16_t port, ConnectCallback cb);
 	//void connect(uint32_t ipAddress, uint16_t port, ConnectCallback cb);
@@ -66,7 +68,7 @@ public:
 
 	void write(void * data, int size, WriteCallback cb);
 
-	int close();
+	error_code close();
 
 	bool waitToRead();
 	bool waitToWrite();
