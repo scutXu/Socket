@@ -89,7 +89,7 @@ int Socket::listen(int backlog)
 	assert(m_state == BOUND);
 	int status = ::listen(m_fd, backlog);
 	if (status == 0) {
-		m_state == LISTENING;
+		m_state = LISTENING;
 		return 0;
 	}
 	assert(errno != 0);
@@ -219,11 +219,15 @@ void Socket::doRead()
 	else if (m_state == CONNECTING) {
 		int status = ::read(m_fd, nullptr, 0);
 		if (status == 0) {
-			m_state == CONNECTED;
+			m_state = CONNECTED;
 			m_connectRequest(0);
 		}
 		else {
 			
+            int e = errno;
+            close();
+            assert(e != 0);
+            m_connectRequest(e);
 		}
 	}
 	else if (m_state == CONNECTED) {
