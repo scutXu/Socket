@@ -7,6 +7,8 @@
 #include <string.h>
 #include "Socket.h"
 
+#define BLOCK_SIZE 1024
+
 Socket::Socket()
 {
 	m_fd = -1;
@@ -110,7 +112,7 @@ void Socket::connect(EndPoint & ep, ConnectCallback cb)
 		cb(error_code(0, std::generic_category()));
 	}
 	else {
-		if (errno == EINPROGRESS) {
+		if (errno == EINPROGRESS || errno == EINTR) {
 			m_state = CONNECTING;
 			m_connectRequest = cb;
 		}
@@ -131,6 +133,7 @@ void Socket::accept(AcceptCallback cb)
 
 void Socket::read(int size, ReadCallback cb)
 {
+	//todo:socket may be closed when error occured
 	assert(m_state == CONNECTING || m_state == CONNECTED);
 	ReadRequest rq;
 	rq.cb = cb;
@@ -180,7 +183,7 @@ error_code Socket::close()
 bool Socket::waitToRead()
 {
 	return m_state == CONNECTING
-		|| (m_state == CONNECTED && !m_readRequests.empty())
+		|| (m_state == CONNECTED)
 		|| (m_state == LISTENING && !m_acceptRequests.empty());
 }
 
@@ -204,7 +207,7 @@ void Socket::doRead()
 			}
 			else {
 				if (errno == EWOULDBLOCK || errno == EAGAIN || errno == ECONNABORTED) {
-
+					//just wait for next connection arrived
 				}
 				else {
 					AcceptCallback cb = m_acceptRequests.front();
@@ -216,13 +219,13 @@ void Socket::doRead()
 		}
 	}
 	else if (m_state == CONNECTING) {
+		//check if connection successed
 		int status = ::read(m_fd, nullptr, 0);
 		if (status == 0) {
 			m_state = CONNECTED;
 			m_connectRequest(error_code(0, std::generic_category()));
 		}
 		else {
-			
             int e = errno;
             close();
             assert(e != 0);
@@ -230,7 +233,44 @@ void Socket::doRead()
 		}
 	}
 	else if (m_state == CONNECTED) {
+		ssize_t bytesRead = 0;
+		ssize_t totalBytesRead = 0;
+		do {
+			size_t originSize = m_readBuffer.size();
+			m_readBuffer.resize(originSize + BLOCK_SIZE);
+			bytesRead = ::read(m_fd, &m_readBuffer[0], BLOCK_SIZE);
+			m_readBuffer.resize(originSize + std::max(0L, bytesRead));
+			totalBytesRead += std::max(0L, bytesRead);
+		} while (bytesRead > 0);
+		if (totalBytesRead > 0) {
+			while (!m_readRequests.empty()) {
+				ReadRequest rq = m_readRequests.front();
+				if (rq.size > 0) {
+					if (m_readBuffer.size() > rq.size) {
+						rq.cb(&m_readBuffer[0], rq.size, error_code(0, std::generic_category()));
+						m_readRequests.pop();
+						m_readBuffer.erase(m_readBuffer.begin(), m_readBuffer.begin() + rq.size);
+					}
+				}
+				else {
+					for (ssize_t i = 0; i < m_readBuffer.size(); ++i) {
+						if (m_readBuffer[i] == rq.delim) {
+							rq.cb(&m_readBuffer[0], i + 1, error_code(0, std::generic_category()));
+							m_readRequests.pop();
+							m_readBuffer.erase(m_readBuffer.begin(), m_readBuffer.begin() + i + 1);
+						}
+					}
+				}
+			}
+		}
+		if (bytesRead < 0) {
+			if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+				//todo:return error and do some clear
+			}
+		}
+		else {
 
+		}
 	}
 	else {
 		assert(false);
