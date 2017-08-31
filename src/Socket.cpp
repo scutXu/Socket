@@ -6,6 +6,7 @@
 #include <utility>
 #include <string.h>
 #include "Socket.h"
+#include "misc_error.h"
 
 #define BLOCK_SIZE 1024
 
@@ -232,7 +233,7 @@ void Socket::doRead()
             m_connectRequest(error_code(errno, std::generic_category()));
 		}
 	}
-	else if (m_state == CONNECTED) {
+	else /*if (m_state == CONNECTED)*/ {
 		ssize_t bytesRead = 0;
 		ssize_t totalBytesRead = 0;
 		do {
@@ -263,16 +264,58 @@ void Socket::doRead()
 				}
 			}
 		}
+        error_code ec(0, std::generic_category());
 		if (bytesRead < 0) {
 			if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-				//todo:return error and do some clear
+                assert(errno != 0);
+                ec = error_code(errno, std::generic_category());
 			}
 		}
 		else {
-
+            //receive FIN
+            ec = misc_errc::eof;
 		}
+        if (ec) {
+            if(!m_readRequests.empty() && !m_readBuffer.empty()) {
+                ReadRequest rq = m_readRequests.front();
+                m_readRequests.pop();
+                rq.cb(&m_readBuffer[0], m_readBuffer.size(), ec);
+            }
+            while (!m_readRequests.empty()) {
+                ReadRequest rq = m_readRequests.front();
+                m_readRequests.pop();
+                rq.cb(NULL, 0, ec);
+            }
+            while (!m_writeRequests.empty()) {
+                WriteRequest wr = m_writeRequests.front();
+                m_writeRequests.pop();
+                wr.cb(misc_errc::read_cause_close);
+            }
+            close();
+        }
 	}
-	else {
-		assert(false);
-	}
+}
+
+void Socket::doWrite()
+{
+    ssize_t bytesWritten = ::write(m_fd, &m_writeBuffer[0], m_writeBuffer.size());
+    if (bytesWritten > 0) {
+        WriteRequest wq;
+        while (bytesWritten > 0 && bytesWritten > (wq = m_writeRequests.front()).size) {
+            wq.cb(error_code(0, std::generic_category()));
+            m_writeRequests.pop();
+            bytesWritten -= wq.size;
+        }
+        if (bytesWritten > 0) {
+            wq.size -= bytesWritten;
+        }
+    }
+    else {
+        if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+            assert(errno != 0);
+            error_code ec(errno, std::generic_category());
+            
+            close();
+        }
+    }
 }
