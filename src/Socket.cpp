@@ -118,10 +118,9 @@ void Socket::connect(EndPoint & ep, ConnectCallback cb)
 			m_connectRequest = cb;
 		}
 		else {
-			int e = errno;
-			close();
-			assert(e != 0);
+			assert(errno != 0);
 			cb(error_code(errno, std::generic_category()));
+			close();			
 		}
 	}
 }
@@ -134,7 +133,6 @@ void Socket::accept(AcceptCallback cb)
 
 void Socket::read(int size, ReadCallback cb)
 {
-	//todo:socket may be closed when error occured
 	assert(m_state == CONNECTING || m_state == CONNECTED);
 	ReadRequest rq;
 	rq.cb = cb;
@@ -147,7 +145,7 @@ void Socket::readUntil(char delim, ReadCallback cb)
 	assert(m_state == CONNECTING || m_state == CONNECTED);
 	ReadRequest rq;
 	rq.cb = cb;
-	rq.size = -1;
+	rq.size = 0;
 	rq.delim = delim;
 	m_readRequests.push(rq);
 }
@@ -170,27 +168,27 @@ error_code Socket::close()
 {
 	if (m_fd >= 0) {
 		int status = ::close(m_fd);
-		m_fd = -1;
-		m_state = CLOSED;
 		if (status == 0) {
+			m_state = CLOSED;
+			m_fd = -1;
 			return error_code(0, std::generic_category());
 		}
 		assert(errno != 0);
 		return error_code(errno, std::generic_category());
 	}
-	return error_code(0, std::generic_category());
+	//todo: already closed
 }
 
 bool Socket::waitToRead()
 {
 	return m_state == CONNECTING
-		|| (m_state == CONNECTED)
+		|| (m_state == CONNECTED && !m_readRequests.empty())
 		|| (m_state == LISTENING && !m_acceptRequests.empty());
 }
 
 bool Socket::waitToWrite()
 {
-	return m_state == CONNECTED && !m_writeBuffer.empty();
+	return m_state == CONNECTED && !m_writeRequests.empty();
 }
 
 void Socket::doRead()
@@ -227,72 +225,62 @@ void Socket::doRead()
 			m_connectRequest(error_code(0, std::generic_category()));
 		}
 		else {
-            int e = errno;
+			assert(errno != 0);
+			m_connectRequest(error_code(errno, std::generic_category()));
             close();
-            assert(e != 0);
-            m_connectRequest(error_code(errno, std::generic_category()));
 		}
 	}
 	else /*if (m_state == CONNECTED)*/ {
-		ssize_t bytesRead = 0;
-		ssize_t totalBytesRead = 0;
-		do {
-			size_t originSize = m_readBuffer.size();
-			m_readBuffer.resize(originSize + BLOCK_SIZE);
-			bytesRead = ::read(m_fd, &m_readBuffer[0], BLOCK_SIZE);
-			m_readBuffer.resize(originSize + std::max(0L, bytesRead));
-			totalBytesRead += std::max(0L, bytesRead);
-		} while (bytesRead > 0);
-		if (totalBytesRead > 0) {
-			while (!m_readRequests.empty()) {
-				ReadRequest rq = m_readRequests.front();
-				if (rq.size > 0) {
-					if (m_readBuffer.size() > rq.size) {
-						rq.cb(&m_readBuffer[0], rq.size, error_code(0, std::generic_category()));
+		while (!m_readRequests.empty()) {
+			ReadRequest rq = m_readRequests.front();
+			ssize_t bytesRead = 0;
+			size_t originalSize = m_readBuffer.size();
+			if (rq.size > 0) {
+				assert(originalSize < rq.size);
+				m_readBuffer.resize(rq.size);
+				bytesRead = ::read(m_fd, &m_readBuffer[0], rq.size);
+
+				if (bytesRead == 0) {
+					void * data = originalSize == 0 ? NULL : (&m_readBuffer[0]);
+					rq.cb(data, originalSize, misc_errc::eof);
+					m_readRequests.pop();
+					m_readBuffer.clear();
+					while (!m_readRequests.empty()) {
+						m_readRequests.front().cb(NULL, 0, misc_errc::eof);
 						m_readRequests.pop();
-						m_readBuffer.erase(m_readBuffer.begin(), m_readBuffer.begin() + rq.size);
+					}
+				}
+				else if (bytesRead < 0) {
+					if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+						m_readBuffer.resize(originalSize);
+						break;
+					}
+					else {
+						assert(errno != 0);
+						void * data = originalSize == 0 ? NULL : (&m_readBuffer[0]);
+						rq.cb(data, originalSize, error_code(errno, std::generic_category()));
+						m_readRequests.pop();
+						m_readBuffer.clear();
+						close();
 					}
 				}
 				else {
-					for (ssize_t i = 0; i < m_readBuffer.size(); ++i) {
-						if (m_readBuffer[i] == rq.delim) {
-							rq.cb(&m_readBuffer[0], i + 1, error_code(0, std::generic_category()));
-							m_readRequests.pop();
-							m_readBuffer.erase(m_readBuffer.begin(), m_readBuffer.begin() + i + 1);
-						}
+					if (bytesRead == rq.size) {
+						rq.cb(&m_readBuffer[0], rq.size, error_code(0, std::generic_category()));
+						m_readRequests.pop();
+						m_readBuffer.clear();
+					}
+					else {
+						m_readBuffer.resize(originalSize + bytesRead);
+						break;
 					}
 				}
 			}
-		}
-        error_code ec(0, std::generic_category());
-		if (bytesRead < 0) {
-			if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-                assert(errno != 0);
-                ec = error_code(errno, std::generic_category());
+			else {
+				//todo
+				assert(false);
 			}
 		}
-		else {
-            //receive FIN
-            ec = misc_errc::eof;
-		}
-        if (ec) {
-            if(!m_readRequests.empty() && !m_readBuffer.empty()) {
-                ReadRequest rq = m_readRequests.front();
-                m_readRequests.pop();
-                rq.cb(&m_readBuffer[0], m_readBuffer.size(), ec);
-            }
-            while (!m_readRequests.empty()) {
-                ReadRequest rq = m_readRequests.front();
-                m_readRequests.pop();
-                rq.cb(NULL, 0, ec);
-            }
-            while (!m_writeRequests.empty()) {
-                WriteRequest wr = m_writeRequests.front();
-                m_writeRequests.pop();
-                wr.cb(misc_errc::read_cause_close);
-            }
-            close();
-        }
 	}
 }
 
