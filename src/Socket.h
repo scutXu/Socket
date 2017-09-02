@@ -94,7 +94,7 @@ private:
 	int m_fd;
 	State m_state;
 	queue<AcceptCallback> m_acceptRequests;
-	ConnectCallback m_connectRequest;
+	ConnectCallback m_connectCallback;
 	queue<ReadRequest> m_readRequests;
 	queue<WriteRequest> m_writeRequests;
 	vector<uint8_t> m_readBuffer;

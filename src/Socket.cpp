@@ -115,7 +115,7 @@ void Socket::connect(EndPoint & ep, ConnectCallback cb)
 	else {
 		if (errno == EINPROGRESS || errno == EINTR) {
 			m_state = CONNECTING;
-			m_connectRequest = cb;
+			m_connectCallback = cb;
 		}
 		else {
 			assert(errno != 0);
@@ -142,6 +142,8 @@ void Socket::read(int size, ReadCallback cb)
 
 void Socket::readUntil(char delim, ReadCallback cb)
 {
+	//todo
+	assert(false);
 	assert(m_state == CONNECTING || m_state == CONNECTED);
 	ReadRequest rq;
 	rq.cb = cb;
@@ -167,6 +169,33 @@ void Socket::write(void * data, int size, WriteCallback cb)
 error_code Socket::close()
 {
 	if (m_fd >= 0) {
+		error_code ec(ECANCELED, std::generic_category());
+
+		if (m_connectCallback != nullptr) {
+			m_connectCallback(ec);
+		}
+		while (!m_acceptRequests.empty())
+		{
+			(m_acceptRequests.front())(Socket(), ec);
+			m_acceptRequests.pop();
+		}
+
+		while (!m_readRequests.empty())
+		{
+			m_readRequests.front().cb(nullptr, 0, ec);
+			m_readRequests.pop();
+		}
+
+		while (!m_writeRequests.empty())
+		{
+			m_writeRequests.front().cb(ec);
+			m_writeRequests.pop();
+		}
+
+		m_writeBuffer.clear();
+		m_readBuffer.clear();
+
+
 		int status = ::close(m_fd);
 		if (status == 0) {
 			m_state = CLOSED;
@@ -176,7 +205,8 @@ error_code Socket::close()
 		assert(errno != 0);
 		return error_code(errno, std::generic_category());
 	}
-	//todo: already closed
+
+	return error_code(EBADF, std::generic_category());
 }
 
 bool Socket::waitToRead()
@@ -222,11 +252,13 @@ void Socket::doRead()
 		int status = ::read(m_fd, nullptr, 0);
 		if (status == 0) {
 			m_state = CONNECTED;
-			m_connectRequest(error_code(0, std::generic_category()));
+			m_connectCallback(error_code(0, std::generic_category()));
+			m_connectCallback = nullptr;
 		}
 		else {
 			assert(errno != 0);
-			m_connectRequest(error_code(errno, std::generic_category()));
+			m_connectCallback(error_code(errno, std::generic_category()));
+			m_connectCallback = nullptr;
             close();
 		}
 	}
@@ -241,12 +273,12 @@ void Socket::doRead()
 				bytesRead = ::read(m_fd, &m_readBuffer[0], rq.size);
 
 				if (bytesRead == 0) {
-					void * data = originalSize == 0 ? NULL : (&m_readBuffer[0]);
+					void * data = originalSize == 0 ? nullptr : (&m_readBuffer[0]);
 					rq.cb(data, originalSize, misc_errc::eof);
 					m_readRequests.pop();
 					m_readBuffer.clear();
 					while (!m_readRequests.empty()) {
-						m_readRequests.front().cb(NULL, 0, misc_errc::eof);
+						m_readRequests.front().cb(nullptr, 0, misc_errc::eof);
 						m_readRequests.pop();
 					}
 				}
@@ -257,7 +289,7 @@ void Socket::doRead()
 					}
 					else {
 						assert(errno != 0);
-						void * data = originalSize == 0 ? NULL : (&m_readBuffer[0]);
+						void * data = originalSize == 0 ? nullptr : (&m_readBuffer[0]);
 						rq.cb(data, originalSize, error_code(errno, std::generic_category()));
 						m_readRequests.pop();
 						m_readBuffer.clear();
@@ -288,21 +320,20 @@ void Socket::doWrite()
 {
     ssize_t bytesWritten = ::write(m_fd, &m_writeBuffer[0], m_writeBuffer.size());
     if (bytesWritten > 0) {
+		m_writeBuffer.erase(m_writeBuffer.begin(), m_writeBuffer.begin() + bytesWritten);
         WriteRequest wq;
         while (bytesWritten > 0 && bytesWritten > (wq = m_writeRequests.front()).size) {
             wq.cb(error_code(0, std::generic_category()));
             m_writeRequests.pop();
             bytesWritten -= wq.size;
         }
-        if (bytesWritten > 0) {
-            wq.size -= bytesWritten;
-        }
+		wq.size -= bytesWritten;
     }
     else {
         if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
             assert(errno != 0);
-            error_code ec(errno, std::generic_category());
-            
+			m_writeRequests.front().cb(error_code(errno, std::generic_category()));
+			m_writeRequests.pop();
             close();
         }
     }

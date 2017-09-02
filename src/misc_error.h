@@ -6,8 +6,6 @@
 enum class misc_errc
 {
     eof = 1,
-    read_cause_close,
-    write_cause_close,
 };
 
 namespace std
