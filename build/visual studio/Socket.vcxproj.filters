@@ -15,12 +15,27 @@
     <ClInclude Include="..\..\src\Socket.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\Log.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\misc_error.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\EndPoint.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\Socket.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\BufferList.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\Log.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\misc_error.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

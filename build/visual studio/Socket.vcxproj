@@ -29,10 +29,15 @@
   <ItemGroup>
     <ClInclude Include="..\..\src\BufferList.h" />
     <ClInclude Include="..\..\src\EndPoint.h" />
+    <ClInclude Include="..\..\src\Log.h" />
+    <ClInclude Include="..\..\src\misc_error.h" />
     <ClInclude Include="..\..\src\Socket.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\BufferList.cpp" />
     <ClCompile Include="..\..\src\EndPoint.cpp" />
+    <ClCompile Include="..\..\src\Log.cpp" />
+    <ClCompile Include="..\..\src\misc_error.cpp" />
     <ClCompile Include="..\..\src\Socket.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
