@@ -142,8 +142,6 @@ void Socket::read(int size, ReadCallback cb)
 
 void Socket::readUntil(char delim, ReadCallback cb)
 {
-	//todo
-	assert(false);
 	assert(m_state == CONNECTING || m_state == CONNECTED);
 	ReadRequest rq;
 	rq.cb = cb;
@@ -152,7 +150,7 @@ void Socket::readUntil(char delim, ReadCallback cb)
 	m_readRequests.push(rq);
 }
 
-void Socket::write(void * data, int size, WriteCallback cb)
+void Socket::write(const void * data, int size, WriteCallback cb)
 {
 	assert(m_state == CONNECTING || m_state == CONNECTED);
 
@@ -267,50 +265,80 @@ void Socket::doRead()
 			ReadRequest rq = m_readRequests.front();
 			ssize_t bytesRead = 0;
 			size_t originalSize = m_readBuffer.size();
+			size_t expectedBytesRead = 0;
 			if (rq.size > 0) {
 				assert(originalSize < rq.size);
-				m_readBuffer.resize(rq.size);
-				bytesRead = ::read(m_fd, &m_readBuffer[0], rq.size);
-
-				if (bytesRead == 0) {
-					void * data = originalSize == 0 ? nullptr : (&m_readBuffer[0]);
-					rq.cb(data, originalSize, std::make_error_code(misc_errc::eof));
+				expectedBytesRead = rq.size - originalSize;
+			}
+			else {
+				expectedBytesRead = BLOCK_SIZE;
+			}
+			m_readBuffer.resize(originalSize + expectedBytesRead);
+			bytesRead = ::read(m_fd, &m_readBuffer[originalSize], expectedBytesRead);
+			if (bytesRead == 0) {
+				//eof
+				void * data = originalSize == 0 ? nullptr : (&m_readBuffer[0]);
+				rq.cb(data, originalSize, std::make_error_code(misc_errc::eof));
+				m_readRequests.pop();
+				m_readBuffer.clear();
+				while (!m_readRequests.empty()) {
+					m_readRequests.front().cb(nullptr, 0, std::make_error_code(misc_errc::eof));
 					m_readRequests.pop();
-					m_readBuffer.clear();
-					while (!m_readRequests.empty()) {
-						m_readRequests.front().cb(nullptr, 0, std::make_error_code(misc_errc::eof));
-						m_readRequests.pop();
-					}
 				}
-				else if (bytesRead < 0) {
-					if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-						m_readBuffer.resize(originalSize);
-						break;
-					}
-					else {
-						assert(errno != 0);
-						void * data = originalSize == 0 ? nullptr : (&m_readBuffer[0]);
-						rq.cb(data, originalSize, error_code(errno, std::generic_category()));
-						m_readRequests.pop();
-						m_readBuffer.clear();
-						close();
-					}
+			}
+			else if (bytesRead < 0) {
+				//error
+				if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+					m_readBuffer.resize(originalSize);
+					break;
 				}
 				else {
-					if (bytesRead == rq.size) {
+					assert(errno != 0);
+					void * data = originalSize == 0 ? nullptr : (&m_readBuffer[0]);
+					rq.cb(data, originalSize, error_code(errno, std::generic_category()));
+					m_readRequests.pop();
+					m_readBuffer.clear();
+					close();
+				}
+			}
+			else {
+				m_readBuffer.resize(originalSize + bytesRead);
+				if (rq.size > 0) {
+					if (bytesRead == expectedBytesRead) {
 						rq.cb(&m_readBuffer[0], rq.size, error_code(0, std::generic_category()));
 						m_readRequests.pop();
 						m_readBuffer.clear();
 					}
 					else {
-						m_readBuffer.resize(originalSize + bytesRead);
+						//too few data
 						break;
 					}
 				}
-			}
-			else {
-				//todo
-				assert(false);
+				else {
+					//check if delim read
+					size_t i = originalSize;
+					for (; i < originalSize + bytesRead; ++i) {
+						if (m_readBuffer[i] == rq.delim) {
+							break;
+						}
+					}
+
+					if (i < originalSize + bytesRead) {
+						//delim read
+						rq.cb(&m_readBuffer[0], i + 1, error_code(0, std::generic_category()));
+						m_readRequests.pop();
+						m_readBuffer.erase(m_readBuffer.begin(), m_readBuffer.begin() + i + 1);
+					}
+					else {
+						if (bytesRead == expectedBytesRead) {
+
+						}
+						else {
+							//too few data
+							break;
+						}
+					}
+				}
 			}
 		}
 	}

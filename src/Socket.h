@@ -66,7 +66,7 @@ public:
 	void read(int size, ReadCallback cb);
 	void readUntil(char delim, ReadCallback cb);
 
-	void write(void * data, int size, WriteCallback cb);
+	void write(const void * data, int size, WriteCallback cb);
 
 	error_code close();
 
