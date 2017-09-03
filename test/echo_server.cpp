@@ -5,7 +5,7 @@
 #define CHECK_ERROR(ec) \
 	if(ec) { \
 		std::string msg = ec.message(); \
-		Log(msg.c_str()); \
+		Log("%s", msg.c_str()); \
 		exit(0); \
 	}
 
@@ -21,7 +21,7 @@ public:
 };
 
 Session::Session(Socket && sock)
-	: m_socket(sock)
+	: m_socket(std::move(sock))
 {
 	m_socket.readUntil('\n', std::bind(&Session::onRead,
 		this,
@@ -39,7 +39,7 @@ void Session::onRead(void * data, int size, const error_code & ec)
 {
 	if (ec) {
 		string msg = ec.message();
-		Log(msg.c_str());
+		Log("%s", msg.c_str());
 	}
 	else {
 		m_socket.write(data, size, std::bind(&Session::onWrite, this, std::placeholders::_1));
@@ -56,7 +56,7 @@ void Session::onWrite(const error_code & ec)
 {
 	if (ec) {
 		string msg = ec.message();
-		Log(msg.c_str());
+		Log("%s", msg.c_str());
 	}
 }
 
@@ -74,9 +74,10 @@ int main()
 
 	AcceptCallback onAccept = [&](Socket && newSocket, const error_code & ec) {
 		CHECK_ERROR(ec);
-		Session * client = new Session(server.accept(onAccept));
+		Session * client = new Session(std::move(newSocket));
 		clients.push_back(client);
 		sockets.push_back(&client->m_socket);
+		server.accept(onAccept);
 	};
 	server.accept(onAccept);
 

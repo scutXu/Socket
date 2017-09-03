@@ -274,11 +274,11 @@ void Socket::doRead()
 
 				if (bytesRead == 0) {
 					void * data = originalSize == 0 ? nullptr : (&m_readBuffer[0]);
-					rq.cb(data, originalSize, misc_errc::eof);
+					rq.cb(data, originalSize, std::make_error_code(misc_errc::eof));
 					m_readRequests.pop();
 					m_readBuffer.clear();
 					while (!m_readRequests.empty()) {
-						m_readRequests.front().cb(nullptr, 0, misc_errc::eof);
+						m_readRequests.front().cb(nullptr, 0, std::make_error_code(misc_errc::eof));
 						m_readRequests.pop();
 					}
 				}

@@ -48,3 +48,21 @@ void BufferList::append(unsigned int size)
 {
 
 }
+
+BufferList::Visitor BufferList::getHead()
+{
+	Visitor v;
+	return v;
+}
+BufferList::Visitor BufferList::getTail()
+{
+	Visitor v;
+	return v;
+}
+
+void BufferList::commit(unsigned int size)
+{}
+void BufferList::consume(unsigned int size)
+{}
+void BufferList::clear()
+{}
