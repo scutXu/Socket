@@ -13,7 +13,6 @@
 Socket::Socket(Poller & poller)
     :m_poller(poller)
 {
-    m_poller.add(this);
 	m_fd = -1;
 	m_state = CLOSED;
 }
@@ -21,7 +20,6 @@ Socket::Socket(Poller & poller)
 Socket::Socket(int domain, int type, int protocol, Poller & poller)
     :m_poller(poller)
 {
-    m_poller.add(this);
 	m_fd = -1;
 	m_state = CLOSED;
 	open(domain, type, protocol);
@@ -30,8 +28,10 @@ Socket::Socket(int domain, int type, int protocol, Poller & poller)
 Socket::Socket(Socket && that)
     :m_poller(that.m_poller)
 {
-    m_poller.replace(this, &that);
 	m_fd = that.m_fd;
+	if (that.m_fd >= 0) {
+		m_poller.replace(this, &that);
+	}
 	m_state = that.m_state;
 
 	that.m_fd = -1;
@@ -41,7 +41,6 @@ Socket::Socket(Socket && that)
 Socket::~Socket()
 {
 	close();
-    m_poller.remove(this);
 }
 
 int Socket::getFD()
@@ -67,6 +66,7 @@ error_code Socket::open(int domain, int type, int protocol)
 	assert(m_state == CLOSED);
 	m_fd = socket(domain, type, protocol);
 	if (m_fd >= 0) {
+		m_poller.add(this);
 		m_state = OPENED;
         return error_code(0, std::generic_category());
 	}
@@ -200,11 +200,11 @@ error_code Socket::close()
 		m_writeBuffer.clear();
 		m_readBuffer.clear();
 
-
+		m_poller.remove(this);
 		int status = ::close(m_fd);
+		m_state = CLOSED;
+		m_fd = -1;
 		if (status == 0) {
-			m_state = CLOSED;
-			m_fd = -1;
 			return error_code(0, std::generic_category());
 		}
 		assert(errno != 0);

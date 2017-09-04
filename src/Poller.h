@@ -10,23 +10,16 @@ class Socket;
 class Poller
 {
 public:
-    struct SocketReference
-    {
-        SocketReference(Socket * s)
-        {
-            socket = s;
-            markClosed = false;
-        }
-        Socket * socket;
-        bool markClosed;
-    };
-    
     void add(Socket * socket);
-    void replace(Socket * newSocket, Socket * oldSocket);
     void remove(Socket * socket);
-    void poll();
+	void replace(Socket * newSocket, Socket * oldSocket);
+    void run();
+protected:
+	virtual void poll();
 private:
-    vector<SocketReference> m_sockRefs;
+    vector<Socket *> m_sockRefs;
+	vector<Socket *> m_socksToAdd;
+	bool m_removeHappened;
 };
 
 #endif /* Poller_h */
