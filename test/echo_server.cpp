@@ -1,12 +1,13 @@
 #include <system_error>
+#include <stdlib.h>
 #include "Log.h"
 #include "Socket.h"
 
 #define CHECK_ERROR(ec) \
 	if(ec) { \
 		std::string msg = ec.message(); \
-		Log("%s", msg.c_str()); \
-		exit(0); \
+		Log("%s\n", msg.c_str()); \
+		exit(-1); \
 	}
 
 class Session
@@ -42,6 +43,7 @@ void Session::onRead(void * data, int size, const error_code & ec)
 		Log("%s", msg.c_str());
 	}
 	else {
+        Log("%d:%s",m_socket.getFD(),(const char *)data);
 		m_socket.write(data, size, std::bind(&Session::onWrite, this, std::placeholders::_1));
 
 		m_socket.readUntil('\n', std::bind(&Session::onRead,
@@ -68,12 +70,16 @@ int main()
 	Socket server;
 	sockets.push_back(&server);
 
-	CHECK_ERROR(server.open(AF_INET, SOCK_STREAM, 0));
-	CHECK_ERROR(server.bind("127.0.0.1", 3000));
+    error_code ec = server.open(AF_INET, SOCK_STREAM, 0);
+    CHECK_ERROR(ec);
+    ec = server.bind("127.0.0.1", 3000);
+	CHECK_ERROR(ec);
 	server.listen(100);
+    Log("start listening...");
 
 	AcceptCallback onAccept = [&](Socket && newSocket, const error_code & ec) {
 		CHECK_ERROR(ec);
+        Log("new connection arrived:%d",newSocket.getFD());
 		Session * client = new Session(std::move(newSocket));
 		clients.push_back(client);
 		sockets.push_back(&client->m_socket);

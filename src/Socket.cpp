@@ -77,7 +77,7 @@ error_code Socket::bind(const char * ipAddress, uint16_t port)
 error_code Socket::bind(EndPoint & ep)
 {
 	assert(m_state == OPENED);
-	int status = ::bind(m_fd, &ep.addr, sizeof(ep));
+	int status = ::bind(m_fd, &(ep.addr), ep.getAddressLength());
 	if (status == 0) {
 		m_state = BOUND;
 		return error_code(0, std::generic_category());
