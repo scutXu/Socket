@@ -30,7 +30,7 @@ void Poller::replace(Socket * newSocket, Socket * oldSocket)
 		*iter = newSocket;
 	}
 	else {
-		iter = std::find(m_socksToAdd.begin(), m_socksToAdd.end(), socket);
+		iter = std::find(m_socksToAdd.begin(), m_socksToAdd.end(), oldSocket);
 		assert(iter != m_socksToAdd.end());
 		*iter = newSocket;
 	}

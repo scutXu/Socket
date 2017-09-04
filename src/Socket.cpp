@@ -235,6 +235,7 @@ void Socket::doRead()
 				Socket s(m_poller);
 				s.m_fd = fd;
 				s.m_state = CONNECTED;
+				m_poller.add(&s);
 				AcceptCallback cb = m_acceptRequests.front();
 				m_acceptRequests.pop();
 				cb(std::move(s), error_code(0, std::generic_category()));
