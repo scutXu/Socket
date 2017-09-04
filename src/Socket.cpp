@@ -10,21 +10,27 @@
 
 #define BLOCK_SIZE 1024
 
-Socket::Socket()
+Socket::Socket(Poller & poller)
+    :m_poller(poller)
 {
+    m_poller.add(this);
 	m_fd = -1;
 	m_state = CLOSED;
 }
 
-Socket::Socket(int domain, int type, int protocol)
+Socket::Socket(int domain, int type, int protocol, Poller & poller)
+    :m_poller(poller)
 {
+    m_poller.add(this);
 	m_fd = -1;
 	m_state = CLOSED;
 	open(domain, type, protocol);
 }
 
 Socket::Socket(Socket && that)
+    :m_poller(that.m_poller)
 {
+    m_poller.replace(this, &that);
 	m_fd = that.m_fd;
 	m_state = that.m_state;
 
@@ -35,6 +41,7 @@ Socket::Socket(Socket && that)
 Socket::~Socket()
 {
 	close();
+    m_poller.remove(this);
 }
 
 int Socket::getFD()
@@ -174,7 +181,7 @@ error_code Socket::close()
 		}
 		while (!m_acceptRequests.empty())
 		{
-			(m_acceptRequests.front())(Socket(), ec);
+			(m_acceptRequests.front())(Socket(m_poller), ec);
 			m_acceptRequests.pop();
 		}
 
@@ -225,7 +232,7 @@ void Socket::doRead()
 		if (!m_acceptRequests.empty()) {
 			int fd = ::accept(m_fd, nullptr, nullptr);
 			if (fd >= 0) {
-				Socket s;
+				Socket s(m_poller);
 				s.m_fd = fd;
 				s.m_state = CONNECTED;
 				AcceptCallback cb = m_acceptRequests.front();
@@ -239,7 +246,7 @@ void Socket::doRead()
 				else {
 					AcceptCallback cb = m_acceptRequests.front();
 					m_acceptRequests.pop();
-					cb(Socket(), error_code(errno, std::generic_category()));
+					cb(Socket(m_poller), error_code(errno, std::generic_category()));
 				}
 			}
 			

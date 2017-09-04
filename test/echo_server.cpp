@@ -63,38 +63,27 @@ void Session::onWrite(const error_code & ec)
 }
 
 vector<Session *> clients;
-vector<Socket *> sockets;
 
 int main()
 {
-	Socket server;
-	sockets.push_back(&server);
-
+    Poller poller;
+	Socket server(poller);
+    
     error_code ec = server.open(AF_INET, SOCK_STREAM, 0);
     CHECK_ERROR(ec);
     ec = server.bind("127.0.0.1", 3000);
 	CHECK_ERROR(ec);
 	server.listen(100);
-    Log("start listening...");
+    Log("start listening...\n");
 
 	AcceptCallback onAccept = [&](Socket && newSocket, const error_code & ec) {
 		CHECK_ERROR(ec);
-        Log("new connection arrived:%d",newSocket.getFD());
+        Log("new connection arrived:%d\n",newSocket.getFD());
 		Session * client = new Session(std::move(newSocket));
 		clients.push_back(client);
-		sockets.push_back(&client->m_socket);
 		server.accept(onAccept);
 	};
 	server.accept(onAccept);
-
-	while (!sockets.empty()) {
-		for (auto iter = sockets.begin(); iter != sockets.end(); ++iter) {
-			if ((*iter)->waitToRead()) {
-				(*iter)->doRead();
-			}
-			if ((*iter)->waitToWrite()) {
-				(*iter)->doWrite();
-			}
-		}
-	}
+    poller.poll();
+	
 }

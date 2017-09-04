@@ -7,6 +7,7 @@
 #include <system_error>
 #include "BufferList.h"
 #include "EndPoint.h"
+#include "Poller.h"
 
 using std::string;
 using std::vector;
@@ -34,8 +35,8 @@ public:
 		CONNECTED,
 	};
 
-	Socket();
-	Socket(int domain, int type, int protocol);
+	Socket(Poller & poller);
+	Socket(int domain, int type, int protocol, Poller & poller);
 	Socket(Socket &&);
 	Socket(const Socket &) = delete;
 	Socket & operator= (const Socket &) = delete;
@@ -99,6 +100,8 @@ private:
 	queue<WriteRequest> m_writeRequests;
 	vector<uint8_t> m_readBuffer;
 	vector<uint8_t> m_writeBuffer;
+    
+    Poller & m_poller;
 
 	//BufferList m_readBuffer;
 	//BufferList m_writeBuffer;
