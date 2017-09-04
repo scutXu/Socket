@@ -10,6 +10,8 @@
 		1510F1961F54335000989F65 /* EndPoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1510F1921F54335000989F65 /* EndPoint.cpp */; };
 		1510F1971F54335000989F65 /* Socket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1510F1941F54335000989F65 /* Socket.cpp */; };
 		1549B1231F56D68700FA6B2F /* misc_error.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1549B1221F56D68700FA6B2F /* misc_error.cpp */; };
+		15CD2D6C1F5D095D00BEA4C0 /* Log.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 15CD2D6B1F5D095D00BEA4C0 /* Log.cpp */; };
+		15CD2D6E1F5D096700BEA4C0 /* BufferList.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 15CD2D6D1F5D096700BEA4C0 /* BufferList.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -33,6 +35,9 @@
 		1510F1951F54335000989F65 /* Socket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Socket.h; sourceTree = "<group>"; };
 		1549B1211F56D68700FA6B2F /* misc_error.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = misc_error.h; sourceTree = "<group>"; };
 		1549B1221F56D68700FA6B2F /* misc_error.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = misc_error.cpp; sourceTree = "<group>"; };
+		15CD2D6A1F5D095D00BEA4C0 /* Log.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Log.h; sourceTree = "<group>"; };
+		15CD2D6B1F5D095D00BEA4C0 /* Log.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Log.cpp; sourceTree = "<group>"; };
+		15CD2D6D1F5D096700BEA4C0 /* BufferList.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = BufferList.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,9 +70,12 @@
 		1510F1901F54335000989F65 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				15CD2D6B1F5D095D00BEA4C0 /* Log.cpp */,
+				15CD2D6A1F5D095D00BEA4C0 /* Log.h */,
 				1549B1221F56D68700FA6B2F /* misc_error.cpp */,
 				1549B1211F56D68700FA6B2F /* misc_error.h */,
 				1510F1911F54335000989F65 /* BufferList.h */,
+				15CD2D6D1F5D096700BEA4C0 /* BufferList.cpp */,
 				1510F1921F54335000989F65 /* EndPoint.cpp */,
 				1510F1931F54335000989F65 /* EndPoint.h */,
 				1510F1941F54335000989F65 /* Socket.cpp */,
@@ -136,6 +144,8 @@
 			files = (
 				1510F1971F54335000989F65 /* Socket.cpp in Sources */,
 				1510F1961F54335000989F65 /* EndPoint.cpp in Sources */,
+				15CD2D6E1F5D096700BEA4C0 /* BufferList.cpp in Sources */,
+				15CD2D6C1F5D095D00BEA4C0 /* Log.cpp in Sources */,
 				1549B1231F56D68700FA6B2F /* misc_error.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
