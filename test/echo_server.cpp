@@ -1,5 +1,7 @@
 #include <system_error>
+#include <algorithm>
 #include <stdlib.h>
+#include <assert.h>
 #include "Log.h"
 #include "Socket.h"
 
@@ -10,20 +12,37 @@
 		exit(-1); \
 	}
 
+class SessionManager;
+
 class Session
 {
 public:
-	Session(Socket && sock);
+	Session(Socket && sock, SessionManager & mgr);
 	~Session();
 	void onRead(void * data, int size, const error_code & ec);
 	void onWrite(const error_code & ec);
 
 	Socket m_socket;
+	SessionManager & m_mgr;
 };
 
-Session::Session(Socket && sock)
-	: m_socket(std::move(sock))
+class SessionManager
 {
+public:
+	void addSession(Session * s);
+	void removeSession(Session * s);
+
+	void clearClosedSessions();
+private:
+	vector<Session *> m_sessions;
+	vector<Session *> m_sessionToRemove;
+};
+
+Session::Session(Socket && sock, SessionManager & mgr)
+	: m_socket(std::move(sock))
+	, m_mgr(mgr)
+{
+	m_mgr.addSession(this);
 	m_socket.readUntil('\n', std::bind(&Session::onRead,
 		this,
 		std::placeholders::_1,
@@ -33,7 +52,7 @@ Session::Session(Socket && sock)
 
 Session::~Session()
 {
-	
+	m_socket.close();
 }
 
 void Session::onRead(void * data, int size, const error_code & ec)
@@ -41,9 +60,9 @@ void Session::onRead(void * data, int size, const error_code & ec)
 	if (ec) {
 		string msg = ec.message();
 		log("onReadError:%s", msg.c_str());
+		m_mgr.removeSession(this);
 	}
 	else {
-        log("read %d bytes::%s",size,(const char *)data);
 		m_socket.write(data, size, std::bind(&Session::onWrite, this, std::placeholders::_1));
 
 		m_socket.readUntil('\n', std::bind(&Session::onRead,
@@ -59,16 +78,39 @@ void Session::onWrite(const error_code & ec)
 	if (ec) {
 		string msg = ec.message();
 		log("onWriteError:%s", msg.c_str());
+		m_mgr.removeSession(this);
 	}
 }
 
-vector<Session *> clients;
+void SessionManager::addSession(Session * s)
+{
+	m_sessions.push_back(s);
+}
+
+void SessionManager::removeSession(Session * s)
+{
+	m_sessionToRemove.push_back(s);
+}
+
+void SessionManager::clearClosedSessions()
+{
+	while (!m_sessions.empty()) {
+		log("remove session");
+		Session * s = m_sessionToRemove[m_sessionToRemove.size() - 1];
+		m_sessionToRemove.pop_back();
+		auto iter = std::find(m_sessions.begin(), m_sessions.end(), s);
+		assert(iter != m_sessions.end());
+		m_sessions.erase(iter);
+	}
+}
+
 
 int main()
 {
     signal(SIGPIPE, SIG_IGN);
     
     Poller poller;
+	SessionManager mgr;
 	Socket server(poller);
     
     error_code ec = server.open(AF_INET, SOCK_STREAM, 0);
@@ -81,11 +123,12 @@ int main()
 	AcceptCallback onAccept = [&](Socket && newSocket, const error_code & ec) {
 		CHECK_ERROR(ec);
         log("new connection arrived:%d",newSocket.getFD());
-		Session * client = new Session(std::move(newSocket));
-		clients.push_back(client);
+		Session * client = new Session(std::move(newSocket), mgr);
 		server.accept(onAccept);
 	};
 	server.accept(onAccept);
+
+	poller.setLoopCallback(std::bind(&SessionManager::clearClosedSessions, &mgr));
     poller.run();
 	
 }

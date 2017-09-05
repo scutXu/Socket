@@ -68,6 +68,10 @@ void Poller::run()
 			m_sockRefs.insert(m_sockRefs.end(), m_socksToAdd.begin(), m_socksToAdd.end());
 			m_socksToAdd.clear();
 		}
+
+		if (m_loopCallback != nullptr) {
+			m_loopCallback();
+		}
     }
 }
 
@@ -81,4 +85,9 @@ void Poller::poll()
 			(*iter)->doWrite();
 		}
 	}
+}
+
+void Poller::setLoopCallback(const function<void()> & cb)
+{
+	m_loopCallback = cb;
 }
