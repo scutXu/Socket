@@ -16,7 +16,7 @@ EndPoint::EndPoint(const char * ipAddress, uint16_t port)
 		addr4.sin_port = htons(port);
 		int status = inet_pton(AF_INET, ipAddress, &addr4.sin_addr);
         if(status != 1) {
-            Log("error when parsing ipv4 address:%s", ipAddress);
+            log("error when parsing ipv4 address:%s", ipAddress);
         }
 	}
 	else {
@@ -24,7 +24,7 @@ EndPoint::EndPoint(const char * ipAddress, uint16_t port)
 		addr6.sin6_port = htons(port);
 		int status = inet_pton(AF_INET6, ipAddress, &addr6.sin6_addr);
         if(status != 1) {
-            Log("error when parsing ipv6 address:%s", ipAddress);
+            log("error when parsing ipv6 address:%s", ipAddress);
         }
 	}
 }
