@@ -2,8 +2,10 @@
 #include <algorithm>
 #include <stdlib.h>
 #include <assert.h>
-#include "Log.h"
+#include <signal.h>
+
 #include "Socket.h"
+#include "Log.h"
 
 #define CHECK_ERROR(ec) \
 	if(ec) { \
@@ -101,6 +103,7 @@ void SessionManager::clearClosedSessions()
 		auto iter = std::find(m_sessions.begin(), m_sessions.end(), s);
 		assert(iter != m_sessions.end());
 		m_sessions.erase(iter);
+		delete s;
 	}
 }
 
