@@ -87,6 +87,7 @@ error_code Socket::bind(EndPoint & ep)
 	int status = ::bind(m_fd, &(ep.addr), ep.getAddressLength());
 	if (status == 0) {
 		m_state = BOUND;
+        setNonBlocking();
 		return error_code(0, std::generic_category());
 	}
 	assert(errno != 0);
@@ -114,6 +115,7 @@ void Socket::connect(const char * ipAddress, uint16_t port, ConnectCallback cb)
 void Socket::connect(EndPoint & ep, ConnectCallback cb)
 {
 	assert(m_state == OPENED || m_state == BOUND);
+    setNonBlocking();
 	int status = ::connect(m_fd, &ep.addr, sizeof(ep));
 	if (status == 0) {
 		m_state = CONNECTED;
@@ -235,6 +237,7 @@ void Socket::doRead()
 				Socket s(m_poller);
 				s.m_fd = fd;
 				s.m_state = CONNECTED;
+                s.setNonBlocking();
 				m_poller.add(&s);
 				AcceptCallback cb = m_acceptRequests.front();
 				m_acceptRequests.pop();

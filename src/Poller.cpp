@@ -3,6 +3,16 @@
 #include "Poller.h"
 #include "Socket.h"
 
+Poller::Poller()
+{
+    
+}
+
+Poller::~Poller()
+{
+    
+}
+
 void Poller::add(Socket *socket)
 {
 	m_socksToAdd.push_back(socket);

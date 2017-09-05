@@ -66,6 +66,8 @@ vector<Session *> clients;
 
 int main()
 {
+    signal(SIGPIPE, SIG_IGN);
+    
     Poller poller;
 	Socket server(poller);
     

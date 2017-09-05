@@ -10,6 +10,8 @@ class Socket;
 class Poller
 {
 public:
+    Poller();
+    virtual ~Poller();
     void add(Socket * socket);
     void remove(Socket * socket);
 	void replace(Socket * newSocket, Socket * oldSocket);
