@@ -33,6 +33,13 @@ Socket::Socket(Socket && that)
 		m_poller.replace(this, &that);
 	}
 	m_state = that.m_state;
+	m_acceptRequests = std::move(that.m_acceptRequests);
+	m_connectCallback = that.m_connectCallback;
+	that.m_connectCallback = nullptr;
+	m_readRequests = std::move(that.m_readRequests);
+	m_writeRequests = std::move(that.m_writeRequests);
+	m_readBuffer = std::move(that.m_readBuffer);
+	m_writeBuffer = std::move(that.m_writeBuffer);
 
 	that.m_fd = -1;
 	that.m_state = CLOSED;
@@ -173,7 +180,7 @@ void Socket::write(const void * data, int size, WriteCallback cb)
 	m_writeRequests.push(wq);
 }
 
-error_code Socket::close()
+void Socket::close()
 {
 	if (m_fd >= 0) {
 		error_code ec(ECANCELED, std::generic_category());
@@ -206,14 +213,16 @@ error_code Socket::close()
 		int status = ::close(m_fd);
 		m_state = CLOSED;
 		m_fd = -1;
+		error_code ec;
 		if (status == 0) {
-			return error_code(0, std::generic_category());
+			ec = error_code(0, std::generic_category());
 		}
 		assert(errno != 0);
-		return error_code(errno, std::generic_category());
+		ec = error_code(errno, std::generic_category());
+		if (m_closeCallback) {
+			m_closeCallback(ec);
+		}
 	}
-
-	return error_code(EBADF, std::generic_category());
 }
 
 bool Socket::waitToRead()
@@ -376,4 +385,9 @@ void Socket::doWrite()
             close();
         }
     }
+}
+
+void Socket::setCloseCallback(CloseCallback cb)
+{
+	m_closeCallback = cb;
 }

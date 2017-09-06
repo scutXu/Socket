@@ -23,6 +23,7 @@ public:
 	~Session();
 	void onRead(void * data, int size, const error_code & ec);
 	void onWrite(const error_code & ec);
+	void onClose(const error_code & ec);
 
 	Socket m_socket;
 	SessionManager & m_mgr;
@@ -62,7 +63,6 @@ void Session::onRead(void * data, int size, const error_code & ec)
 	if (ec) {
 		string msg = ec.message();
 		log("onReadError:%s", msg.c_str());
-		m_mgr.removeSession(this);
 	}
 	else {
 		m_socket.write(data, size, std::bind(&Session::onWrite, this, std::placeholders::_1));
@@ -80,8 +80,12 @@ void Session::onWrite(const error_code & ec)
 	if (ec) {
 		string msg = ec.message();
 		log("onWriteError:%s", msg.c_str());
-		m_mgr.removeSession(this);
 	}
+}
+
+void Session::onClose(const error_code & ec)
+{
+	m_mgr.removeSession(this);
 }
 
 void SessionManager::addSession(Session * s)
