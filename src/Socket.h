@@ -21,6 +21,7 @@ typedef function<void(Socket &&, const error_code &)> AcceptCallback;
 typedef function<void(const error_code &)> ConnectCallback;
 typedef function<void(void *, int, const error_code &)> ReadCallback;
 typedef function<void(const error_code &)> WriteCallback;
+typedef function<void(const error_code &)> CloseCallback;
 
 class Socket
 {
@@ -69,13 +70,15 @@ public:
 
 	void write(const void * data, int size, WriteCallback cb);
 
-	error_code close();
+	void close();
 
 	bool waitToRead();
 	bool waitToWrite();
 
 	void doRead();
 	void doWrite();
+
+	void setCloseCallback(CloseCallback cb);
 
 private:
 	struct ReadRequest
@@ -98,6 +101,7 @@ private:
 	ConnectCallback m_connectCallback;
 	queue<ReadRequest> m_readRequests;
 	queue<WriteRequest> m_writeRequests;
+	CloseCallback m_closeCallback;
 	vector<uint8_t> m_readBuffer;
 	vector<uint8_t> m_writeBuffer;
     

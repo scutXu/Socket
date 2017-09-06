@@ -213,7 +213,6 @@ void Socket::close()
 		int status = ::close(m_fd);
 		m_state = CLOSED;
 		m_fd = -1;
-		error_code ec;
 		if (status == 0) {
 			ec = error_code(0, std::generic_category());
 		}

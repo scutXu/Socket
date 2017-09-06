@@ -100,7 +100,7 @@ void SessionManager::removeSession(Session * s)
 
 void SessionManager::clearClosedSessions()
 {
-	while (!m_sessions.empty()) {
+	while (!m_sessionToRemove.empty()) {
 		log("remove session");
 		Session * s = m_sessionToRemove[m_sessionToRemove.size() - 1];
 		m_sessionToRemove.pop_back();
